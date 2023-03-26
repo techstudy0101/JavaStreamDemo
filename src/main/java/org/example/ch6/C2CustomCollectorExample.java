@@ -1,17 +1,23 @@
 package org.example.ch6;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class C2CustomCollectorExample {
 
     public static void main(String[] args) {
 //        collectExample();
-        collectExampleWithFinisher();
+        for(int i = 0; i < 1; i++) {
+            collectExampleWithFinisher();
+        }
     }
 
     public static void collectExample() {
@@ -23,28 +29,28 @@ public class C2CustomCollectorExample {
                 .map(i -> String.valueOf(i));
 
         // Supplier<R>
-        Supplier<StringBuffer> initial = () -> {
+        Supplier<List<String>> initial = () -> {
             System.out.println("supplier ");
-            return new StringBuffer("{");
+            return new ArrayList<>();
         };
 
         // Accumulator<R, T>
-        BiConsumer<StringBuffer, String> accumulator = (sb, s) -> {
+        BiConsumer<List<String>, String> accumulator = (sb, s) -> {
             System.out.println("accumulator  " + sb + ",   " + s);
-            sb.append(s);
+            sb.add(s);
         };
 
         // Combiner<R, R>
-        BiConsumer<StringBuffer, StringBuffer> combiner = (sb1, sb2) -> {
+        BiConsumer<List<String>, List<String>> combiner = (sb1, sb2) -> {
             System.out.println("combiner  " + sb1 + ",   " + sb2);
-            sb1.append(sb2);
+            sb1.addAll(sb2);
         };
 
-        StringBuffer result = strings
+        List<String> result = strings
                 .map(x -> String.valueOf(x))
                 .collect(initial, accumulator, combiner);
 
-        result.append("}");
+        result.add("end");
 
         System.out.println("collectExampleV2 end = " + result.toString());
     }
@@ -52,35 +58,39 @@ public class C2CustomCollectorExample {
     public static void collectExampleWithFinisher() {
         System.out.println("--- collectExampleV3 start ---");
 
-        Stream<String> strings = Stream.iterate(0, x -> x < 10, x -> x + 1)
-                .map(i -> String.valueOf(i));
+        Set<String> strings = Stream.iterate(0, x -> x < 10, x -> x + 1)
+                .map(i -> String.valueOf(i))
+                .collect(Collectors.toSet());
 
+        System.out.println("set value = " + strings);
 
         // Supplier<A>
-        Supplier<StringBuffer> initial = () -> {
-            System.out.println("supplier ");
-            return new StringBuffer("{");
+        Supplier<List<String>> initial = () -> {
+            System.out.println("supplier " + ", Th = " + Thread.currentThread().threadId());
+            return new ArrayList<>();
         };
 
         // Accumulator<A, T>
-        BiConsumer<StringBuffer, String> accumulator = (sb, s) -> {
-            System.out.println("accumulator  " + sb + ",   " + s);
-            sb.append(s);
+        BiConsumer<List<String>, String> accumulator = (sb, s) -> {
+            System.out.println("accumulator  " + sb + ",   " + s + ", Th = " + Thread.currentThread().threadId());
+            sb.add(s);
         };
 
         // Combiner<A>
-        BinaryOperator<StringBuffer> combiner = (sb1, sb2) -> {
-            System.out.println("combiner ---" + ", Th = " + Thread.currentThread().threadId());
-            return sb1.append(sb2);
+        BinaryOperator<List<String>> combiner = (sb1, sb2) -> {
+            System.out.println("combiner --- sb1 = " + sb1 + " , sb2 = " + sb2  + ", Th = " + Thread.currentThread().threadId());
+            sb1.addAll(sb2);
+            return sb1;
         };
 
         // Finisher<A, R>
-        Function<StringBuffer, String> finisher = (StringBuffer sb) -> {
+        Function<List<String>, String> finisher = (List<String> sb) -> {
             System.out.println("--- finisher --- sb = " + sb.toString());
-            return sb.append("}").toString();
+            sb.add("end");
+            return sb.stream().collect(Collectors.joining());
         };
 
-        Collector<String, StringBuffer, String> collector = Collector.of(
+        Collector<String, List<String>, String> collector = Collector.of(
                 initial,
                 accumulator,
                 combiner,
@@ -88,8 +98,10 @@ public class C2CustomCollectorExample {
                 Collector.Characteristics.UNORDERED
         );
         String result = strings
+                .stream()
                 .parallel()
                 .map(x -> String.valueOf(x))
+                .parallel()
                 .collect(
                         collector
                 );
